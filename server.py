@@ -7,8 +7,21 @@ import logging
 
 # server.py
 from mcp.server.fastmcp import FastMCP
-from api.api_connection import get_access_token, save_tokens, API_URL, refresh_access_token, CLIENT_ID, CLIENT_SECRET, load_tokens, AUTH_URL, TOKEN_URL, TOKEN_FILE
-from utils import _convert_moving_time_to_str, _convert_speed_to_kmh, _convert_distance_to_km
+from api.api_connection import (
+    save_tokens,
+    API_URL,
+    refresh_access_token,
+    CLIENT_ID,
+    CLIENT_SECRET,
+    load_tokens,
+    AUTH_URL,
+    TOKEN_URL,
+)
+from utils import (
+    _convert_moving_time_to_str,
+    _convert_speed_to_kmh,
+    _convert_distance_to_km,
+)
 
 # Create an MCP server
 mcp = FastMCP("Strava_assistant")
@@ -40,11 +53,11 @@ def get_access_token_or_create_auth_url() -> str:
     tokens = load_tokens()
     if tokens:
         # Check if the token is expired or will expire in the next minute
-        if time.time() > tokens['expires_at'] - 60:
+        if time.time() > tokens["expires_at"] - 60:
             tokens = refresh_access_token(tokens)
         else:
             logging.info("Access token is valid.")
-        return tokens['access_token']
+        return tokens["access_token"]
 
     # --- Initial Authentication Flow ---
     else:
@@ -55,19 +68,26 @@ def get_access_token_or_create_auth_url() -> str:
             "response_type": "code",
             "redirect_uri": "http://localhost/exchange_token",
             "approval_prompt": "force",
-            "scope": "read,activity:read_all" # Request read access to all activities
+            "scope": "read,activity:read_all",  # Request read access to all activities
         }
-        
-        auth_full_url = requests.Request('GET', AUTH_URL, params=auth_params).prepare().url
-        logging.info("\n1. A browser window will open for you to authorize this script.")
-        logging.info("2. After authorizing, Strava will redirect you to a URL that looks like 'http://localhost/exchange_token?state=&code=...&scope=...'")
-        
+
+        auth_full_url = (
+            requests.Request("GET", AUTH_URL, params=auth_params).prepare().url
+        )
+        logging.info(
+            "\n1. A browser window will open for you to authorize this script."
+        )
+        logging.info(
+            "2. After authorizing, Strava will redirect you to a URL that looks like 'http://localhost/exchange_token?state=&code=...&scope=...'"
+        )
+
         webbrowser.open(auth_full_url)
 
         return auth_full_url
 
+
 @mcp.tool()
-def fetch_access_token(authentication_code:str):
+def fetch_access_token(authentication_code: str):
     """Uses the authentication code entered by the client to finalize the
     access to the Strava API.
 
@@ -76,15 +96,14 @@ def fetch_access_token(authentication_code:str):
         create_auth_url tool.
     Returns:
         access_token : Access_token that will be necessary for every other tool needing to request Strava.
-"""
+    """
     token_payload = {
-        'client_id': CLIENT_ID,
-        'client_secret': CLIENT_SECRET,
-        'code': authentication_code,
-        'grant_type': 'authorization_code'
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "code": authentication_code,
+        "grant_type": "authorization_code",
     }
 
-    
     logging.info("Exchanging authorization code for access token...")
     response = requests.post(TOKEN_URL, data=token_payload)
     response.raise_for_status()
@@ -93,10 +112,11 @@ def fetch_access_token(authentication_code:str):
     try:
         token_file = os.getenv("TOKEN_FILE")
         save_tokens(new_tokens, token_file=token_file)
-    except:
+    except Exception:
         save_tokens(new_tokens)
-    
-    return new_tokens['access_token']
+
+    return new_tokens["access_token"]
+
 
 @mcp.tool()
 def get_athlete_activities(access_token, n_activities=20) -> list[dict]:
@@ -107,7 +127,7 @@ def get_athlete_activities(access_token, n_activities=20) -> list[dict]:
     Args:
         access_token : Token to connect to Strava API. This is returned by fetch access token tool.
         n_activities (int) : Number of activities to return for the athlete. By default, it's 20.
-    
+
     Returns: A list of JSON-format for each activity. For each JSON, here are the keys returned
     with the following information:
         name (str) : Name of the activity
@@ -131,30 +151,51 @@ def get_athlete_activities(access_token, n_activities=20) -> list[dict]:
         logging.info("Cannot fetch activities without a valid access token.")
         return None
 
-    headers = {'Authorization': f'Bearer {access_token}'}
-    params = {'per_page': int(n_activities), 'page': 1} # Get the last n_activities
-    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params = {"per_page": int(n_activities), "page": 1}  # Get the last n_activities
+
     logging.info("\nFetching recent activities from Strava...")
-    response = requests.get(f"{API_URL}/athlete/activities", headers=headers, params=params)
-    useful_details = ['name', 'distance', 'moving_time', 'total_elevation_gain', 'sport_type', 'start_date', 'kudos_count', 'comment_count', 'athlete_count', 'photo_count', 'average_speed', 'max_speed', 'average_cadence', 'average_heartrate', 'suffer_score']
+    response = requests.get(
+        f"{API_URL}/athlete/activities", headers=headers, params=params
+    )
+    useful_details = [
+        "name",
+        "distance",
+        "moving_time",
+        "total_elevation_gain",
+        "sport_type",
+        "start_date",
+        "kudos_count",
+        "comment_count",
+        "athlete_count",
+        "photo_count",
+        "average_speed",
+        "max_speed",
+        "average_cadence",
+        "average_heartrate",
+        "suffer_score",
+    ]
 
     try:
         response.raise_for_status()
         activities = response.json()
-        
+
         if not activities:
             logging.info("No activities found.")
         else:
-            clean_activities = [{k:act.get(k) for k in useful_details} for act in activities]
+            clean_activities = [
+                {k: act.get(k) for k in useful_details} for act in activities
+            ]
             _convert_moving_time_to_str(clean_activities)
             _convert_speed_to_kmh(clean_activities)
             _convert_distance_to_km(clean_activities)
         return clean_activities
-        
+
     except requests.exceptions.HTTPError as err:
         logging.info(f"HTTP Error: {err}")
         logging.info(f"Response Body: {response.text}")
         return None
+
 
 # Tool to fetch comments ?
 
