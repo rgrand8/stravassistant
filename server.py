@@ -21,6 +21,7 @@ from utils import (
     _convert_moving_time_to_str,
     _convert_speed_to_kmh,
     _convert_distance_to_km,
+    _convert_str_date_to_timestamp,
 )
 
 # Create an MCP server
@@ -119,7 +120,12 @@ def fetch_access_token(authentication_code: str):
 
 
 @mcp.tool()
-def get_athlete_activities(access_token, n_activities=20) -> list[dict]:
+def get_athlete_activities(
+    access_token,
+    n_activities=20,
+    before_date: str | None = None,
+    after_date: str | None = None,
+) -> list[dict]:
     """Fetches the last n activities on Strava for the authenticated athlete.
     Information only concerns the details of the activities, nothing related to the content
     of comments.
@@ -127,6 +133,12 @@ def get_athlete_activities(access_token, n_activities=20) -> list[dict]:
     Args:
         access_token : Token to connect to Strava API. This is returned by fetch access token tool.
         n_activities (int) : Number of activities to return for the athlete. By default, it's 20.
+        before_date (str|None) : Optional date in ISO format (YYYY-MM-DD). This will fetch
+        activities before this date. If it's not is ISO format,
+        please propose a date in the format YYYY-MM-DD given the user's demand.
+        after_date (str|None) : Optional date in ISO format (YYYY-MM-DD). This will fetch
+        activities after this date. If it's not is ISO format,
+        please propose a date in the format YYYY-MM-DD given the user's demand.
 
     Returns: A list of JSON-format for each activity. For each JSON, here are the keys returned
     with the following information:
@@ -152,7 +164,12 @@ def get_athlete_activities(access_token, n_activities=20) -> list[dict]:
         return None
 
     headers = {"Authorization": f"Bearer {access_token}"}
-    params = {"per_page": int(n_activities), "page": 1}  # Get the last n_activities
+    params = {
+        "before": _convert_str_date_to_timestamp(before_date) if before_date else None,
+        "after": _convert_str_date_to_timestamp(after_date) if after_date else None,
+        "per_page": int(n_activities),
+        "page": 1,
+    }
 
     logging.info("\nFetching recent activities from Strava...")
     response = requests.get(
