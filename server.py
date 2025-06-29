@@ -214,7 +214,29 @@ def get_athlete_activities(
         return None
 
 
-# Tool to fetch comments ?
+@mcp.tool()
+def get_weather_data(date_str: str, latitude: float, longitude: float) -> dict:
+    """
+    Fetches weather data for a specific date and location (you should transform
+    the location to latitude and longitude before calling this tool).
+    Args:
+        date_str (str): Date in ISO format (YYYY-MM-DD) for which to fetch the weather data.
+        latitude (float): Latitude of the location.
+        longitude (float): Longitude of the location.
+    Returns: A dictionary with following information
+    """
+    base_url = "https://api.openweathermap.org/data/3.0/onecall/day_summary"
+    api_key = os.getenv("OPENWEATHER_API_KEY")
+    url = f"{base_url}?lat={latitude}&lon={longitude}&date={date_str}&appid={api_key}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        weather_data = response.json()
+        return weather_data
+
+    except Exception as e:
+        logging.error(f"Error fetching weather data: {e}")
+        return None
 
 
 # Add a dynamic greeting resource
