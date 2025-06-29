@@ -215,24 +215,65 @@ def get_athlete_activities(
 
 
 @mcp.tool()
-def get_weather_data(date_str: str, latitude: float, longitude: float) -> dict:
+def get_forecast_weather_data(location: str) -> dict:
     """
-    Fetches weather data for a specific date and location (you should transform
-    the location to latitude and longitude before calling this tool).
+    Fetches weather data for the 5 next days given a location. location should be stripped of spaces and uncased.
     Args:
-        date_str (str): Date in ISO format (YYYY-MM-DD) for which to fetch the weather data.
-        latitude (float): Latitude of the location.
-        longitude (float): Longitude of the location.
+        location (str): Location for analysis.
     Returns: A dictionary with following information
     """
-    base_url = "https://api.openweathermap.org/data/3.0/onecall/day_summary"
-    api_key = os.getenv("OPENWEATHER_API_KEY")
-    url = f"{base_url}?lat={latitude}&lon={longitude}&date={date_str}&appid={api_key}"
+    base_url = "https://api.tomorrow.io/v4/weather/forecast"
+    api_key = os.getenv("TOMORROW_API_KEY")
+    url = f"{base_url}?location={location}&timesteps=1d&units=metric&apikey={api_key}"
+
+    headers = {"accept": "application/json", "accept-encoding": "deflate, gzip, br"}
+
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
         weather_data = response.json()
-        return weather_data
+        cleaned_weather_forecast = {
+            "location": weather_data.get("location", {}).get("name", "Unknown"),
+            "forecast": [
+                {
+                    "date": day.get("time", ""),
+                    "precipitation_probability_avg": day.get("values", {}).get(
+                        "precipitationProbabilityAvg", None
+                    ),
+                    "precipitation_probability_max": day.get("values", {}).get(
+                        "precipitationProbabilityMax", None
+                    ),
+                    "precipitation_probability_min": day.get("values", {}).get(
+                        "precipitationProbabilityMin", None
+                    ),
+                    "humidity_avg": day.get("values", {}).get("humidityAvg", None),
+                    "sunrise_time": day.get("values", {}).get("sunriseTime", ""),
+                    "sunset_time": day.get("values", {}).get("sunsetTime", ""),
+                    "temperature_apparent_avg": day.get("values", {}).get(
+                        "temperatureApparentAvg", None
+                    ),
+                    "temperature_apparent_max": day.get("values", {}).get(
+                        "temperatureApparentMax", None
+                    ),
+                    "temperature_apparent_min": day.get("values", {}).get(
+                        "temperatureApparentMin", None
+                    ),
+                    "temperature_avg": day.get("values", {}).get(
+                        "temperatureAvg", None
+                    ),
+                    "temperature_max": day.get("values", {}).get(
+                        "temperatureMax", None
+                    ),
+                    "temperature_min": day.get("values", {}).get(
+                        "temperatureMin", None
+                    ),
+                    "wind_speed_avg": day.get("values", {}).get("windSpeedAvg", None),
+                    "wind_speed_max": day.get("values", {}).get("windSpeedMax", None),
+                }
+                for day in weather_data["timelines"].get("daily", [])
+            ],
+        }
+        return cleaned_weather_forecast
 
     except Exception as e:
         logging.error(f"Error fetching weather data: {e}")
