@@ -18,6 +18,9 @@ from api.api_connection import (
     TOKEN_URL,
 )
 from utils import (
+    _add_athlete_id,
+    _add_strava_activity_id,
+    _clean_segment_efforts,
     _convert_moving_time_to_str,
     _convert_speed_to_kmh,
     _convert_distance_to_km,
@@ -142,6 +145,8 @@ def get_athlete_activities(
 
     Returns: A list of JSON-format for each activity. For each JSON, here are the keys returned
     with the following information:
+        activity_id (int) : ID of the activity
+        athlete_id (int) : ID of the athlete who performed the activity
         name (str) : Name of the activity
         sport_type (str) : Type of the activity (Ride, Run)
         distance (float) : distance in km
@@ -176,6 +181,8 @@ def get_athlete_activities(
         f"{API_URL}/athlete/activities", headers=headers, params=params
     )
     useful_details = [
+        "id",
+        "athlete",
         "name",
         "distance",
         "moving_time",
@@ -203,10 +210,82 @@ def get_athlete_activities(
             clean_activities = [
                 {k: act.get(k) for k in useful_details} for act in activities
             ]
+            _add_athlete_id(clean_activities)
+            _add_strava_activity_id(clean_activities)
             _convert_moving_time_to_str(clean_activities)
             _convert_speed_to_kmh(clean_activities)
             _convert_distance_to_km(clean_activities)
         return clean_activities
+
+    except requests.exceptions.HTTPError as err:
+        logging.info(f"HTTP Error: {err}")
+        logging.info(f"Response Body: {response.text}")
+        return None
+
+
+@mcp.tool()
+def get_segment_efforts_for_activity(access_token: str, activity_id: int) -> list[dict]:
+    """
+    Fetches segment efforts for a given activity. Needs activity_id as int.
+    If activity_id is not fetched yet, please use the get_athlete_activities tool first where
+    activity_id is in the JSON keys.
+
+    Args:
+        access_token (str): Access token for Strava API.
+        activity_id (int): ID of the activity to fetch segment efforts for.
+
+    Returns:
+        list[dict]: List of segment efforts with details.
+        Keys in the dict json are:
+            id (int): ID of the segment effort
+            name (str): Name of the segment effort
+            average_watts (float): Average power output in watts
+            kom_rank (int): King of the Mountain rank for the segment effort
+            pr_rank (int): Personal Record rank for the segment effort
+            elapsed_time (int): Elapsed time for the segment effort in seconds
+            segment_id (int): ID of the segment
+            segment_distance (float): Distance of the segment in meters
+            segment_elevation_high (float): High elevation of the segment in meters
+            segment_elevation_low (float): Low elevation of the segment in meters
+    """
+    if not access_token:
+        logging.info("Cannot fetch segment efforts without a valid access token.")
+        return None
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params = {
+        "include_all_efforts": True,
+    }
+    response = requests.get(
+        f"{API_URL}/activities/{activity_id}", headers=headers, params=params
+    )
+
+    try:
+        response.raise_for_status()
+        activity = response.json()
+        segment_efforts = activity.get("segment_efforts", [])
+        if not segment_efforts:
+            logging.info("No segment efforts found for this activity.")
+            return []
+
+        used_details = [
+            "id",
+            "name",
+            "segment",
+            "average_watts",
+            "kom_rank",
+            "pr_rank",
+            "elapsed_time",
+        ]
+
+        cleaned_segment_efforts = [
+            {k: seg.get(k) for k in used_details} for seg in segment_efforts
+        ]
+        _clean_segment_efforts(cleaned_segment_efforts)
+
+        # TODO: limit number of segment efforts returned
+
+        return cleaned_segment_efforts
 
     except requests.exceptions.HTTPError as err:
         logging.info(f"HTTP Error: {err}")

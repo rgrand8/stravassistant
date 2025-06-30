@@ -27,3 +27,21 @@ def _convert_distance_to_km(list_dict: list):
 
 def _convert_str_date_to_timestamp(date_str: str) -> int:
     return time.mktime(datetime.strptime(date_str, "%Y-%m-%d").timetuple())
+
+
+def _add_strava_activity_id(list_dict: list):
+    for d_ in list_dict:
+        d_["activity_id"] = d_.pop("id", None)
+
+
+def _add_athlete_id(list_dict: list):
+    for d_ in list_dict:
+        d_["athlete_id"] = d_.pop("athlete", {}).get("id", None)
+
+
+def _clean_segment_efforts(list_dict: list):
+    for d_ in list_dict:
+        d_["segment_id"] = d_.get("segment", {}).get("id", None)
+        d_["segment_distance"] = d_.get("segment", {}).get("distance", None)
+        d_["segment_elevation_high"] = d_.get("segment", {}).get("elevation_high", None)
+        d_["segment_elevation_low"] = d_.pop("segment", {}).get("elevation_low", None)
