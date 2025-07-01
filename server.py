@@ -25,6 +25,8 @@ from utils import (
     _convert_speed_to_kmh,
     _convert_distance_to_km,
     _convert_str_date_to_timestamp,
+    _enrich_with_avg_slope,
+    _return_only_top_n_segment_efforts,
 )
 
 # Create an MCP server
@@ -224,7 +226,9 @@ def get_athlete_activities(
 
 
 @mcp.tool()
-def get_segment_efforts_for_activity(access_token: str, activity_id: int) -> list[dict]:
+def get_segment_efforts_for_activity(
+    access_token: str, activity_id: int, n_segments: int = 10
+) -> list[dict]:
     """
     Fetches segment efforts for a given activity. Needs activity_id as int.
     If activity_id is not fetched yet, please use the get_athlete_activities tool first where
@@ -233,6 +237,7 @@ def get_segment_efforts_for_activity(access_token: str, activity_id: int) -> lis
     Args:
         access_token (str): Access token for Strava API.
         activity_id (int): ID of the activity to fetch segment efforts for.
+        n_segments (int): Number of segment efforts to return.
 
     Returns:
         list[dict]: List of segment efforts with details.
@@ -282,10 +287,11 @@ def get_segment_efforts_for_activity(access_token: str, activity_id: int) -> lis
             {k: seg.get(k) for k in used_details} for seg in segment_efforts
         ]
         _clean_segment_efforts(cleaned_segment_efforts)
-
-        # TODO: limit number of segment efforts returned
-
-        return cleaned_segment_efforts
+        _enrich_with_avg_slope(cleaned_segment_efforts)
+        truncated_segment_efforts = _return_only_top_n_segment_efforts(
+            cleaned_segment_efforts, n_segments=n_segments
+        )
+        return truncated_segment_efforts
 
     except requests.exceptions.HTTPError as err:
         logging.info(f"HTTP Error: {err}")

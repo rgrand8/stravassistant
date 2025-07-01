@@ -42,6 +42,32 @@ def _add_athlete_id(list_dict: list):
 def _clean_segment_efforts(list_dict: list):
     for d_ in list_dict:
         d_["segment_id"] = d_.get("segment", {}).get("id", None)
-        d_["segment_distance"] = d_.get("segment", {}).get("distance", None)
-        d_["segment_elevation_high"] = d_.get("segment", {}).get("elevation_high", None)
-        d_["segment_elevation_low"] = d_.pop("segment", {}).get("elevation_low", None)
+        d_["segment_distance"] = (
+            d_.get("segment", {}).get("distance", 0) / 1000
+        )  # Convert to km
+        d_["segment_elevation_high"] = d_.get("segment", {}).get("elevation_high", 0)
+        d_["segment_elevation_low"] = d_.pop("segment", {}).get("elevation_low", 0)
+
+
+def _enrich_with_avg_slope(list_dict: list):
+    """
+    Enriches the list of dictionaries with average slope.
+    The average slope is calculated as (elevation_high - elevation_low) / distance.
+    """
+    for d_ in list_dict:
+        if d_["segment_distance"] > 0:
+            d_["avg_slope"] = (
+                (d_["segment_elevation_high"] - d_["segment_elevation_low"])
+                * 0.001
+                / d_["segment_distance"]
+            )
+        else:
+            d_["avg_slope"] = 0
+
+
+def _return_only_top_n_segment_efforts(list_dict: list, n_segments: int = 10):
+    """
+    Returns only the top N segment efforts based on the 'slope'.
+    Otherwise, LLM free tier does not allow this.
+    """
+    return sorted(list_dict, key=lambda x: x["avg_slope"], reverse=True)[:n_segments]
