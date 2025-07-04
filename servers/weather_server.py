@@ -2,12 +2,13 @@ import requests
 import os
 import logging
 
-
-# server.py
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
 # Create an MCP server
 mcp = FastMCP("weather_mcp")
+
+load_dotenv()
 
 
 @mcp.tool()
