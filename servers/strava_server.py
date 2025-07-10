@@ -318,6 +318,10 @@ def get_segment_general_information(access_token: str, segment_id: int) -> dict:
         - elevation_profile (str): URL link to the elevation profile of the segment. Open it in a browser.
         - city (str): City where the segment is located
         - country (str): Country where the segment is located
+        - start_latlng (list): Latitude and longitude of the segment start point. Create a google map link for the
+        direction from start_latlng to end_latlng.
+        - end_latlng (list): Latitude and longitude of the segment end point. Create a google map link for the
+        direction from start_latlng to end_latlng.
         - athlete_pr_time (int): Personal Record time for the segment by the athlete
         - athlete_pr_date (str): Date of the Personal Record for the athlete
         - athlete_pr_activity_id (int): Activity ID of the Personal Record for the athlete
@@ -341,6 +345,8 @@ def get_segment_general_information(access_token: str, segment_id: int) -> dict:
             "elevation_profile": segment_info.get("elevation_profile", ""),
             "city": segment_info.get("city", ""),
             "country": segment_info.get("country", ""),
+            "start_latlng": segment_info.get("start_latlng", []),
+            "end_latlng": segment_info.get("end_latlng", []),
             "athlete_pr_time": segment_info["athlete_segment_stats"].get(
                 "pr_elapsed_time", 0
             ),
