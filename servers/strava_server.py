@@ -305,6 +305,9 @@ def get_segment_general_information(access_token: str, segment_id: int) -> dict:
     Fetches general information about a specific segment by its ID.
     `get_segment_efforts_for_activity` is called to list segments in an activity.
     This tool is used to get further information about a given segment.
+    If it is asked where a segment is located, this tool can be used to get the
+    start and end latitude and longitude of the segment to generate a Google Maps direction from
+    start_latlng to end_latlng.
 
     Args:
         access_token (str): Access token for Strava API.
