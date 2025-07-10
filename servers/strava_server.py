@@ -297,3 +297,65 @@ def get_segment_efforts_for_activity(
         logging.info(f"HTTP Error: {err}")
         logging.info(f"Response Body: {response.text}")
         return None
+
+
+@mcp.tool()
+def get_segment_general_information(access_token: str, segment_id: int) -> dict:
+    """
+    Fetches general information about a specific segment by its ID.
+    `get_segment_efforts_for_activity` is called to list segments in an activity.
+    This tool is used to get further information about a given segment.
+
+    Args:
+        access_token (str): Access token for Strava API.
+        segment_id (int): ID of the segment to fetch information for.
+
+    Returns:
+        dict: Segment information including
+        - name (str): Name of the segment
+        - distance (float): Distance of the segment in kilometers
+        - total_elevation_gain (float): Total elevation gain of the segment
+        - elevation_profile (str): URL link to the elevation profile of the segment. Open it in a browser.
+        - city (str): City where the segment is located
+        - country (str): Country where the segment is located
+        - athlete_pr_time (int): Personal Record time for the segment by the athlete
+        - athlete_pr_date (str): Date of the Personal Record for the athlete
+        - athlete_pr_activity_id (int): Activity ID of the Personal Record for the athlete
+        - athlete_effort_count (int): Number of efforts by the athlete on this segment
+        - kom_elapsed_time (int): All time record elapsed time for the segment
+    """
+    if not access_token:
+        logging.info("Cannot fetch segment efforts without a valid access token.")
+        return None
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(f"{API_URL}/segments/{segment_id}", headers=headers)
+
+    try:
+        response.raise_for_status()
+        segment_info = response.json()
+        cleaned_segment_info = {
+            "name": segment_info.get("name"),
+            "distance": segment_info.get("distance", 0) / 1000,  # Convert to km
+            "total_elevation_gain": segment_info.get("total_elevation_gain", 0),
+            "elevation_profile": segment_info.get("elevation_profile", ""),
+            "city": segment_info.get("city", ""),
+            "country": segment_info.get("country", ""),
+            "athlete_pr_time": segment_info["athlete_segment_stats"].get(
+                "pr_elapsed_time", 0
+            ),
+            "athlete_pr_date": segment_info["athlete_segment_stats"].get("pr_date", ""),
+            "athlete_pr_activity_id": segment_info["athlete_segment_stats"].get(
+                "pr_activity_id", 0
+            ),
+            "athlete_effort_count": segment_info["athlete_segment_stats"].get(
+                "effort_count", 0
+            ),
+            "kom_elapsed_time": segment_info["xoms"].get("overall", 0),
+        }
+        return cleaned_segment_info
+
+    except requests.exceptions.HTTPError as err:
+        logging.info(f"HTTP Error: {err}")
+        logging.info(f"Response Body: {response.text}")
+        return None
