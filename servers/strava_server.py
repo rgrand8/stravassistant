@@ -208,6 +208,7 @@ def get_athlete_activities(
 
         if not activities:
             logging.info("No activities found.")
+            return None
         else:
             clean_activities = [
                 {k: act.get(k) for k in useful_details} for act in activities
