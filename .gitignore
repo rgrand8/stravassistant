@@ -11,3 +11,5 @@ credentials/*
 
 # Virtual environments
 .venv
+
+.vscode/*
